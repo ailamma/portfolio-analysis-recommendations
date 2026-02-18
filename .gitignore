@@ -1,0 +1,30 @@
+# macOS
+.DS_Store
+
+# Python
+__pycache__/
+*.pyc
+*.pyo
+.venv/
+venv/
+.poetry/
+dist/
+*.egg-info/
+
+# Environment
+.env
+
+# Node / frontend
+portfolio-advisor/frontend/node_modules/
+portfolio-advisor/frontend/dist/
+
+# Uploaded data (real CSVs — keep sample only)
+portfolio-advisor/data/uploads/*.csv
+portfolio-advisor/data/processed/*.json
+
+# Poetry lockfile (track it)
+# poetry.lock  ← keep this tracked
+
+# IDE
+.vscode/
+.idea/

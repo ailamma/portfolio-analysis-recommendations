@@ -1,0 +1,232 @@
+{
+  "features": [
+    {
+      "id": "F001",
+      "category": "upload",
+      "description": "User can upload TastyTrade CSV and see positions parsed into a table",
+      "passes": false
+    },
+    {
+      "id": "F002",
+      "category": "upload",
+      "description": "User can upload ThinkOrSwim CSV and see positions parsed into a table",
+      "passes": false
+    },
+    {
+      "id": "F003",
+      "category": "upload",
+      "description": "Upload validation errors shown clearly (wrong format, missing columns, empty file)",
+      "passes": false
+    },
+    {
+      "id": "F004",
+      "category": "parsing",
+      "description": "Greek values (delta, theta, vega, gamma) extracted correctly from TastyTrade CSV",
+      "passes": false
+    },
+    {
+      "id": "F005",
+      "category": "parsing",
+      "description": "Greek values (delta, theta, vega, gamma) extracted correctly from TOS CSV",
+      "passes": false
+    },
+    {
+      "id": "F006",
+      "category": "parsing",
+      "description": "DTE (days to expiration) calculated for each position from expiration date",
+      "passes": false
+    },
+    {
+      "id": "F007",
+      "category": "parsing",
+      "description": "Strategy detection: PMCC (long LEAP call + short call) identified from positions",
+      "passes": false
+    },
+    {
+      "id": "F008",
+      "category": "parsing",
+      "description": "Strategy detection: PMCP (long LEAP put + short put) identified",
+      "passes": false
+    },
+    {
+      "id": "F009",
+      "category": "parsing",
+      "description": "Strategy detection: 112 structure (PDS + 2 naked puts) identified on futures",
+      "passes": false
+    },
+    {
+      "id": "F010",
+      "category": "parsing",
+      "description": "Strategy detection: Richman Covered Write (long ITM put LEAP + short call) identified",
+      "passes": false
+    },
+    {
+      "id": "F011",
+      "category": "parsing",
+      "description": "Strategy detection: Strangle, naked put, jade lizard, spread identified",
+      "passes": false
+    },
+    {
+      "id": "F012",
+      "category": "market_data",
+      "description": "VIX current value fetched from yfinance and VIX regime displayed (Low/Normal/Elevated/Extreme)",
+      "passes": false
+    },
+    {
+      "id": "F013",
+      "category": "market_data",
+      "description": "Per-symbol current price fetched from yfinance for all positions",
+      "passes": false
+    },
+    {
+      "id": "F014",
+      "category": "market_data",
+      "description": "Per-symbol IV rank (IVR) fetched or calculated and displayed",
+      "passes": false
+    },
+    {
+      "id": "F015",
+      "category": "market_data",
+      "description": "Market data refreshes automatically every 5 minutes during session",
+      "passes": false
+    },
+    {
+      "id": "F016",
+      "category": "portfolio_view",
+      "description": "Aggregate portfolio Greeks (total delta, theta, vega) displayed with trade plan thresholds",
+      "passes": false
+    },
+    {
+      "id": "F017",
+      "category": "portfolio_view",
+      "description": "NetLiq shown per account (TastyTrade + TOS) and combined total",
+      "passes": false
+    },
+    {
+      "id": "F018",
+      "category": "portfolio_view",
+      "description": "Buying power usage shown per account with % of limit and color-coded status",
+      "passes": false
+    },
+    {
+      "id": "F019",
+      "category": "portfolio_view",
+      "description": "Position table shows all legs grouped by strategy with DTE, P&L, Greeks per position",
+      "passes": false
+    },
+    {
+      "id": "F020",
+      "category": "portfolio_view",
+      "description": "Positions with DTE < 21 flagged with urgent warning indicator",
+      "passes": false
+    },
+    {
+      "id": "F021",
+      "category": "analysis",
+      "description": "AI analysis agent triggered automatically after CSV upload completes",
+      "passes": false
+    },
+    {
+      "id": "F022",
+      "category": "analysis",
+      "description": "Streaming AI response shown in real-time as agent generates analysis",
+      "passes": false
+    },
+    {
+      "id": "F023",
+      "category": "analysis",
+      "description": "Agent reads trade_plan.md as system context for all analysis",
+      "passes": false
+    },
+    {
+      "id": "F024",
+      "category": "analysis",
+      "description": "Agent returns structured JSON recommendations with priority, action, symbol, rationale",
+      "passes": false
+    },
+    {
+      "id": "F025",
+      "category": "analysis",
+      "description": "Agent checks VIX regime before recommending any new aggressive positions",
+      "passes": false
+    },
+    {
+      "id": "F026",
+      "category": "recommendations",
+      "description": "CLOSE recommendations shown with specific rationale (profit target hit, DTE < 21, loss limit)",
+      "passes": false
+    },
+    {
+      "id": "F027",
+      "category": "recommendations",
+      "description": "ROLL recommendations shown with specific strike/expiration targets and credit expectations",
+      "passes": false
+    },
+    {
+      "id": "F028",
+      "category": "recommendations",
+      "description": "HEDGE alerts shown when portfolio delta or vega is out of bounds per trade plan",
+      "passes": false
+    },
+    {
+      "id": "F029",
+      "category": "recommendations",
+      "description": "MONITOR recommendations shown for positions within parameters (no action needed)",
+      "passes": false
+    },
+    {
+      "id": "F030",
+      "category": "recommendations",
+      "description": "Monthly progress toward 3% NetLiq growth target shown ($ and % progress)",
+      "passes": false
+    },
+    {
+      "id": "F031",
+      "category": "recommendations",
+      "description": "Recommendations prioritized by urgency (URGENT > HIGH > MEDIUM > LOW)",
+      "passes": false
+    },
+    {
+      "id": "F032",
+      "category": "recommendations",
+      "description": "Weekly theta status shown vs $1,308/day minimum target",
+      "passes": false
+    },
+    {
+      "id": "F033",
+      "category": "ui_ux",
+      "description": "Dark theme professional trading UI (similar to TastyTrade/TOS dark mode)",
+      "passes": false
+    },
+    {
+      "id": "F034",
+      "category": "ui_ux",
+      "description": "Mobile responsive layout — usable on phone/iPad for checking while traveling",
+      "passes": false
+    },
+    {
+      "id": "F035",
+      "category": "ui_ux",
+      "description": "Copy recommendation to clipboard button on each recommendation card",
+      "passes": false
+    },
+    {
+      "id": "F036",
+      "category": "ui_ux",
+      "description": "Export full analysis as PDF with positions table + recommendations",
+      "passes": false
+    },
+    {
+      "id": "F037",
+      "category": "ui_ux",
+      "description": "Drag-and-drop CSV upload with file type validation and visual feedback",
+      "passes": false
+    },
+    {
+      "id": "F038",
+      "category": "ui_ux",
+      "description": "Upload progress and analysis status indicators (uploading → parsing → analyzing → done)",
+      "passes": false
+    }
+  ]
+}

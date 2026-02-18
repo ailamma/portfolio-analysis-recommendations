@@ -1,0 +1,152 @@
+"""
+Market data fetcher using yfinance.
+Fetches VIX, per-symbol prices, and IV rank estimates.
+"""
+from __future__ import annotations
+
+import asyncio
+from datetime import datetime, timedelta
+from functools import lru_cache
+from typing import Optional
+
+import numpy as np
+import yfinance as yf
+
+from backend.models import MarketData, VixData
+
+
+# ── VIX ───────────────────────────────────────────────────────────────────────
+
+async def fetch_vix() -> VixData:
+    """Fetch current VIX value and classify regime."""
+    loop = asyncio.get_event_loop()
+    value = await loop.run_in_executor(None, _fetch_vix_sync)
+    return VixData.classify(value)
+
+
+def _fetch_vix_sync() -> float:
+    ticker = yf.Ticker("^VIX")
+    hist = ticker.history(period="1d", interval="1m")
+    if hist.empty:
+        # Fallback: try daily
+        hist = ticker.history(period="5d")
+    if hist.empty:
+        return 20.0  # default to "normal" regime if unavailable
+    return float(hist["Close"].iloc[-1])
+
+
+# ── Per-Symbol Market Data ────────────────────────────────────────────────────
+
+async def fetch_market_data(symbols: list[str]) -> dict[str, MarketData]:
+    """
+    Fetch current price and estimated IV rank for a list of symbols.
+    Futures symbols (starting with /) are skipped — use manual entry for those.
+    """
+    equity_symbols = [s for s in symbols if not s.startswith("/")]
+    if not equity_symbols:
+        return {}
+
+    loop = asyncio.get_event_loop()
+    results = await loop.run_in_executor(None, _fetch_batch_sync, equity_symbols)
+    return results
+
+
+def _fetch_batch_sync(symbols: list[str]) -> dict[str, MarketData]:
+    """Synchronous batch fetch using yfinance download."""
+    results: dict[str, MarketData] = {}
+    now = datetime.utcnow()
+
+    # yfinance download for current price
+    try:
+        tickers = yf.download(
+            tickers=" ".join(symbols),
+            period="1y",
+            interval="1d",
+            group_by="ticker",
+            auto_adjust=True,
+            progress=False,
+            threads=True,
+        )
+    except Exception:
+        tickers = None
+
+    for sym in symbols:
+        try:
+            md = _build_market_data(sym, tickers, now)
+            results[sym] = md
+        except Exception:
+            results[sym] = MarketData(symbol=sym, fetched_at=now)
+
+    return results
+
+
+def _build_market_data(
+    symbol: str,
+    tickers_data,
+    now: datetime,
+) -> MarketData:
+    """Extract price and IV rank for a single symbol from yfinance data."""
+    price: Optional[float] = None
+    iv_rank: Optional[float] = None
+    hv_30d: Optional[float] = None
+
+    try:
+        if tickers_data is not None and not tickers_data.empty:
+            if len(tickers_data.columns.levels[0]) > 1:
+                # Multi-ticker grouping
+                close_col = tickers_data[symbol]["Close"] if symbol in tickers_data.columns.get_level_values(0) else None
+            else:
+                close_col = tickers_data["Close"]
+
+            if close_col is not None and not close_col.empty:
+                price = float(close_col.iloc[-1])
+                # Historical volatility (30-day annualized)
+                if len(close_col) >= 21:
+                    returns = np.log(close_col / close_col.shift(1)).dropna()
+                    hv_30d = float(returns.tail(21).std() * np.sqrt(252))
+    except Exception:
+        pass
+
+    # Try single ticker for IV data if batch failed
+    if price is None:
+        try:
+            t = yf.Ticker(symbol)
+            hist = t.history(period="5d")
+            if not hist.empty:
+                price = float(hist["Close"].iloc[-1])
+        except Exception:
+            pass
+
+    # Estimate IV rank using 52-week high/low of realized vol as proxy
+    # (True IV rank requires options chain data — this is an approximation)
+    if hv_30d is not None:
+        try:
+            t = yf.Ticker(symbol)
+            hist_1y = t.history(period="1y")
+            if len(hist_1y) >= 252:
+                log_returns = np.log(hist_1y["Close"] / hist_1y["Close"].shift(1)).dropna()
+                rolling_hv = log_returns.rolling(21).std() * np.sqrt(252)
+                hv_min = float(rolling_hv.min())
+                hv_max = float(rolling_hv.max())
+                if hv_max > hv_min:
+                    iv_rank = round((hv_30d - hv_min) / (hv_max - hv_min) * 100, 1)
+        except Exception:
+            pass
+
+    return MarketData(
+        symbol=symbol,
+        price=price,
+        iv_rank=iv_rank,
+        historical_vol_30d=hv_30d,
+        fetched_at=now,
+    )
+
+
+# ── Convenience ───────────────────────────────────────────────────────────────
+
+async def fetch_all(symbols: list[str]) -> tuple[VixData, dict[str, MarketData]]:
+    """Fetch VIX and all symbol market data concurrently."""
+    vix_task = asyncio.create_task(fetch_vix())
+    market_task = asyncio.create_task(fetch_market_data(symbols))
+    vix, market = await asyncio.gather(vix_task, market_task)
+    return vix, market
