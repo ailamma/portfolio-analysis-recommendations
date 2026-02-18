@@ -131,13 +131,23 @@ def _parse_tos_sections(file_path: Path) -> list[pd.DataFrame]:
     for block in sections:
         if len(block) < 2:
             continue
-        # Check if block contains option-relevant columns
-        header_line = block[0].lower()
-        if not any(kw in header_line for kw in ["symbol", "qty", "delta", "mark"]):
-            continue
         from io import StringIO
+
+        # Find the actual column header row (first row that contains "symbol" or "qty")
+        header_idx = None
+        for i, line in enumerate(block):
+            if any(kw in line.lower() for kw in ["symbol", "qty", "delta", "mark"]):
+                header_idx = i
+                break
+        if header_idx is None:
+            continue
+
+        data_block = block[header_idx:]  # slice off any section title rows
+        if len(data_block) < 2:
+            continue
+
         try:
-            df = pd.read_csv(StringIO("\n".join(block)), dtype=str)
+            df = pd.read_csv(StringIO("\n".join(data_block)), dtype=str)
             df.columns = [c.strip().lower() for c in df.columns]
             df = df.rename(columns={k: v for k, v in OPTION_COLS.items() if k in df.columns})
             option_dfs.append(df)

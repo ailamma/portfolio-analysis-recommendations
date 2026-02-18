@@ -4,37 +4,37 @@
       "id": "F001",
       "category": "upload",
       "description": "User can upload TastyTrade CSV and see positions parsed into a table",
-      "passes": false
+      "passes": true
     },
     {
       "id": "F002",
       "category": "upload",
       "description": "User can upload ThinkOrSwim CSV and see positions parsed into a table",
-      "passes": false
+      "passes": true
     },
     {
       "id": "F003",
       "category": "upload",
       "description": "Upload validation errors shown clearly (wrong format, missing columns, empty file)",
-      "passes": false
+      "passes": true
     },
     {
       "id": "F004",
       "category": "parsing",
       "description": "Greek values (delta, theta, vega, gamma) extracted correctly from TastyTrade CSV",
-      "passes": false
+      "passes": true
     },
     {
       "id": "F005",
       "category": "parsing",
       "description": "Greek values (delta, theta, vega, gamma) extracted correctly from TOS CSV",
-      "passes": false
+      "passes": true
     },
     {
       "id": "F006",
       "category": "parsing",
       "description": "DTE (days to expiration) calculated for each position from expiration date",
-      "passes": false
+      "passes": true
     },
     {
       "id": "F007",
