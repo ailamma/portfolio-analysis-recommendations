@@ -73,7 +73,7 @@ function fmtPnl(val) {
 function ExpandedLegs({ legs }) {
   return (
     <tr>
-      <td colSpan={8} style={{ padding: 0 }}>
+      <td colSpan={9} style={{ padding: 0 }}>
         <div style={{
           background: '#0d1117',
           borderTop: `1px solid ${C.border}`,
@@ -124,7 +124,7 @@ function ExpandedLegs({ legs }) {
   )
 }
 
-export default function PositionsTable({ positions, broker }) {
+export default function PositionsTable({ positions, broker, marketData = {} }) {
   const [expanded, setExpanded] = useState(new Set())
 
   if (!positions || positions.length === 0) return null
@@ -160,6 +160,7 @@ export default function PositionsTable({ positions, broker }) {
             <th style={thStyle}>Underlying</th>
             <th style={thStyle}>Strategy</th>
             <th style={thStyle}>Broker</th>
+            <th style={thStyle}>Price</th>
             <th style={thStyle}>Min DTE</th>
             <th style={{ ...thStyle, textAlign: 'right' }}>Δ Net</th>
             <th style={{ ...thStyle, textAlign: 'right' }}>Θ Net</th>
@@ -195,6 +196,11 @@ export default function PositionsTable({ positions, broker }) {
                   <td style={{ padding: '10px 12px', color: C.textMuted, fontSize: '12px' }}>
                     {pos.broker === 'tastytrade' ? 'TT' : 'TOS'}
                   </td>
+                  <td style={{ padding: '10px 12px', fontSize: '12px', color: C.textMuted }}>
+                    {marketData[pos.underlying]?.price
+                      ? `$${marketData[pos.underlying].price.toFixed(2)}`
+                      : '—'}
+                  </td>
                   <td style={{ padding: '10px 12px' }}>
                     <DteBadge dte={pos.min_dte} />
                   </td>
@@ -210,7 +216,7 @@ export default function PositionsTable({ positions, broker }) {
                 </tr>
                 {isOpen && <ExpandedLegs legs={pos.legs || []} />}
                 <tr>
-                  <td colSpan={8} style={{ padding: 0, borderBottom: `1px solid ${C.border}` }} />
+                  <td colSpan={9} style={{ padding: 0, borderBottom: `1px solid ${C.border}` }} />
                 </tr>
               </React.Fragment>
             )

@@ -1,91 +1,77 @@
 import React from 'react'
 
-const COLORS = {
+const C = {
   surface: '#161b22',
   border: '#30363d',
   text: '#c9d1d9',
   textMuted: '#8b949e',
-  accent: '#58a6ff',
   success: '#3fb950',
   warning: '#d29922',
   danger: '#f85149',
 }
 
-function GreekRow({ label, value, target, unit = '', isGood }) {
-  const color = isGood === undefined ? COLORS.text :
-                isGood ? COLORS.success : COLORS.danger
-
+function Row({ label, value, target, targetLabel, pass }) {
+  const color = pass === undefined ? C.text : pass ? C.success : C.danger
   return (
     <div style={{
-      display: 'flex',
-      justifyContent: 'space-between',
-      alignItems: 'center',
-      padding: '8px 0',
-      borderBottom: `1px solid ${COLORS.border}`,
-      fontSize: '13px',
+      display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start',
+      padding: '8px 0', borderBottom: `1px solid ${C.border}`,
     }}>
-      <span style={{ color: COLORS.textMuted }}>{label}</span>
+      <span style={{ fontSize: '12px', color: C.textMuted }}>{label}</span>
       <div style={{ textAlign: 'right' }}>
-        <span style={{ color, fontWeight: 600 }}>
-          {value !== undefined && value !== null ? `${Number(value).toFixed(2)}${unit}` : '—'}
-        </span>
-        {target && (
-          <div style={{ fontSize: '11px', color: COLORS.textMuted }}>{target}</div>
-        )}
+        <div style={{ fontSize: '13px', fontWeight: 600, color }}>
+          {value ?? '—'}
+          {pass === false && ' ⚠'}
+        </div>
+        {targetLabel && <div style={{ fontSize: '10px', color: C.textMuted }}>{targetLabel}</div>}
       </div>
     </div>
   )
 }
 
 export default function GreeksDisplay({ portfolio }) {
-  // Default targets based on $436K portfolio
-  const NET_LIQ = portfolio?.total_net_liq || 436000
-  const maxDelta = NET_LIQ * 0.002
-  const minTheta = NET_LIQ * 0.003
+  const nliq    = portfolio?.total_net_liq || 436000
+  const delta   = portfolio?.combined_delta
+  const theta   = portfolio?.combined_theta
+  const vega    = portfolio?.combined_vega
 
-  const delta = portfolio?.combined_delta
-  const theta = portfolio?.combined_theta
-  const vega = portfolio?.combined_vega
+  const maxDelta  = nliq * 0.002
+  const minTheta  = nliq * 0.003
+  const maxVega   = Math.abs(theta || 1) * 1.5
 
-  const deltaOk = delta !== undefined ? Math.abs(delta) <= maxDelta : undefined
-  const thetaOk = theta !== undefined ? theta >= minTheta : undefined
-  const vegaOk = vega !== undefined && theta !== undefined
-    ? Math.abs(vega) <= Math.abs(theta) * 1.5 : undefined
+  const deltaOk = delta != null ? Math.abs(delta) <= maxDelta : undefined
+  const thetaOk = theta != null ? Math.abs(theta) >= minTheta : undefined
+  const vegaOk  = vega  != null ? Math.abs(vega) <= maxVega   : undefined
 
   return (
     <div style={{
-      background: COLORS.surface,
-      border: `1px solid ${COLORS.border}`,
-      borderRadius: '8px',
-      padding: '16px',
+      background: C.surface, border: `1px solid ${C.border}`,
+      borderRadius: '8px', padding: '14px',
     }}>
-      <h2 style={{ fontSize: '14px', fontWeight: 600, marginBottom: '12px', color: COLORS.text }}>
-        Portfolio Greeks
-      </h2>
-
-      <GreekRow
-        label="Delta (β-wtd)"
-        value={delta}
-        target={`Target: ±${maxDelta.toFixed(0)}`}
-        isGood={deltaOk}
+      <div style={{ fontSize: '12px', fontWeight: 600, color: C.text, marginBottom: '4px' }}>
+        Greeks
+      </div>
+      <Row
+        label="Δ Delta"
+        value={delta != null ? delta.toFixed(3) : null}
+        targetLabel={`target ±${maxDelta.toFixed(0)}`}
+        pass={deltaOk}
       />
-      <GreekRow
-        label="Theta/day"
-        value={theta}
-        unit=" $"
-        target={`Min: $${minTheta.toFixed(0)}/day`}
-        isGood={thetaOk}
+      <Row
+        label="Θ Theta / day"
+        value={theta != null ? `$${Math.abs(theta).toFixed(0)}` : null}
+        targetLabel={`min $${minTheta.toFixed(0)}`}
+        pass={thetaOk}
       />
-      <GreekRow
-        label="Vega"
-        value={vega}
-        target={theta ? `Max: ${(Math.abs(theta) * 1.5).toFixed(2)}` : '≤ 1.5× theta'}
-        isGood={vegaOk}
+      <Row
+        label="V Vega"
+        value={vega != null ? vega.toFixed(3) : null}
+        targetLabel={`max ${maxVega.toFixed(2)}`}
+        pass={vegaOk}
       />
-
       {!portfolio && (
-        <p style={{ fontSize: '12px', color: COLORS.textMuted, marginTop: '12px', textAlign: 'center' }}>
-          Upload positions to see Greeks
+        <p style={{ fontSize: '11px', color: C.textMuted, marginTop: '10px', textAlign: 'center' }}>
+          Upload to see Greeks
         </p>
       )}
     </div>

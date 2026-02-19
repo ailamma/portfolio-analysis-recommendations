@@ -11,6 +11,7 @@ from fastapi import FastAPI, File, HTTPException, UploadFile
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import StreamingResponse
 
+from backend.market_data import fetch_all, fetch_vix
 from backend.models import AccountSnapshot, PortfolioSnapshot
 from backend.parsers.tasty_parser import parse_tastytrade_csv
 from backend.parsers.tos_parser import parse_tos_csv
@@ -144,9 +145,24 @@ async def get_portfolio():
 
 @app.get("/market-data")
 async def get_market_data():
-    """Return current VIX and per-symbol market data."""
-    # TODO (F012-F014): implement full market data fetch
-    return {"status": "not_implemented", "message": "Implement market_data.py fetch"}
+    """Return current VIX and per-symbol prices/IVR for all loaded positions."""
+    portfolio = _current_portfolio()
+    # Collect unique equity underlyings (skip futures starting with /)
+    symbols = list({
+        p.underlying for p in portfolio.all_positions
+        if not p.underlying.startswith("/")
+    })
+    # Always include index benchmarks
+    for s in ["SPY", "QQQ", "IWM"]:
+        if s not in symbols:
+            symbols.append(s)
+
+    vix, market = await fetch_all(symbols)
+    return {
+        "vix": vix.model_dump(mode="json"),
+        "symbols": {sym: md.model_dump(mode="json") for sym, md in market.items()},
+        "fetched_at": vix.fetched_at.isoformat(),
+    }
 
 
 # ── Analysis endpoint ─────────────────────────────────────────────────────────

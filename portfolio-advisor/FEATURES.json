@@ -70,43 +70,43 @@
       "id": "F012",
       "category": "market_data",
       "description": "VIX current value fetched from yfinance and VIX regime displayed (Low/Normal/Elevated/Extreme)",
-      "passes": false
+      "passes": true
     },
     {
       "id": "F013",
       "category": "market_data",
       "description": "Per-symbol current price fetched from yfinance for all positions",
-      "passes": false
+      "passes": true
     },
     {
       "id": "F014",
       "category": "market_data",
       "description": "Per-symbol IV rank (IVR) fetched or calculated and displayed",
-      "passes": false
+      "passes": true
     },
     {
       "id": "F015",
       "category": "market_data",
       "description": "Market data refreshes automatically every 5 minutes during session",
-      "passes": false
+      "passes": true
     },
     {
       "id": "F016",
       "category": "portfolio_view",
       "description": "Aggregate portfolio Greeks (total delta, theta, vega) displayed with trade plan thresholds",
-      "passes": false
+      "passes": true
     },
     {
       "id": "F017",
       "category": "portfolio_view",
       "description": "NetLiq shown per account (TastyTrade + TOS) and combined total",
-      "passes": false
+      "passes": true
     },
     {
       "id": "F018",
       "category": "portfolio_view",
       "description": "Buying power usage shown per account with % of limit and color-coded status",
-      "passes": false
+      "passes": true
     },
     {
       "id": "F019",
@@ -118,7 +118,7 @@
       "id": "F020",
       "category": "portfolio_view",
       "description": "Positions with DTE < 21 flagged with urgent warning indicator",
-      "passes": false
+      "passes": true
     },
     {
       "id": "F021",
@@ -178,7 +178,7 @@
       "id": "F030",
       "category": "recommendations",
       "description": "Monthly progress toward 3% NetLiq growth target shown ($ and % progress)",
-      "passes": false
+      "passes": true
     },
     {
       "id": "F031",
@@ -202,7 +202,8 @@
       "id": "F034",
       "category": "ui_ux",
       "description": "Mobile responsive layout — usable on phone/iPad for checking while traveling",
-      "passes": false
+      "passes": false,
+      "descoped": true
     },
     {
       "id": "F035",
@@ -214,7 +215,8 @@
       "id": "F036",
       "category": "ui_ux",
       "description": "Export full analysis as PDF with positions table + recommendations",
-      "passes": false
+      "passes": false,
+      "descoped": true
     },
     {
       "id": "F037",

@@ -80,6 +80,17 @@ def _fetch_batch_sync(symbols: list[str]) -> dict[str, MarketData]:
     return results
 
 
+def _finite(val) -> Optional[float]:
+    """Return float if finite, else None. Guards against NaN/Inf from yfinance."""
+    if val is None:
+        return None
+    try:
+        f = float(val)
+        return f if np.isfinite(f) else None
+    except (TypeError, ValueError):
+        return None
+
+
 def _build_market_data(
     symbol: str,
     tickers_data,
@@ -99,21 +110,21 @@ def _build_market_data(
                 close_col = tickers_data["Close"]
 
             if close_col is not None and not close_col.empty:
-                price = float(close_col.iloc[-1])
+                price = _finite(close_col.iloc[-1])
                 # Historical volatility (30-day annualized)
                 if len(close_col) >= 21:
                     returns = np.log(close_col / close_col.shift(1)).dropna()
-                    hv_30d = float(returns.tail(21).std() * np.sqrt(252))
+                    hv_30d = _finite(returns.tail(21).std() * np.sqrt(252))
     except Exception:
         pass
 
-    # Try single ticker for IV data if batch failed
+    # Try single ticker for price if batch failed
     if price is None:
         try:
             t = yf.Ticker(symbol)
             hist = t.history(period="5d")
             if not hist.empty:
-                price = float(hist["Close"].iloc[-1])
+                price = _finite(hist["Close"].iloc[-1])
         except Exception:
             pass
 
@@ -126,9 +137,9 @@ def _build_market_data(
             if len(hist_1y) >= 252:
                 log_returns = np.log(hist_1y["Close"] / hist_1y["Close"].shift(1)).dropna()
                 rolling_hv = log_returns.rolling(21).std() * np.sqrt(252)
-                hv_min = float(rolling_hv.min())
-                hv_max = float(rolling_hv.max())
-                if hv_max > hv_min:
+                hv_min = _finite(rolling_hv.min())
+                hv_max = _finite(rolling_hv.max())
+                if hv_min is not None and hv_max is not None and hv_max > hv_min:
                     iv_rank = round((hv_30d - hv_min) / (hv_max - hv_min) * 100, 1)
         except Exception:
             pass
