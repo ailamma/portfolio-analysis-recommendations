@@ -11,6 +11,7 @@ from fastapi import FastAPI, File, HTTPException, UploadFile
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import StreamingResponse
 
+from backend.agent.harness import run_analysis
 from backend.market_data import fetch_all, fetch_vix
 from backend.models import AccountSnapshot, PortfolioSnapshot
 from backend.parsers.tasty_parser import parse_tastytrade_csv
@@ -169,8 +170,25 @@ async def get_market_data():
 
 @app.post("/analyze")
 async def analyze_portfolio():
-    """Trigger the AI trading analysis agent and stream the response."""
-    # TODO (F021-F024): wire to agent/harness.py
-    async def stream():
-        yield "data: {\"status\": \"not_implemented\"}\n\n"
-    return StreamingResponse(stream(), media_type="text/event-stream")
+    """Trigger the AI trading analysis agent and stream SSE back to the client."""
+    if not _accounts:
+        raise HTTPException(status_code=400, detail="No accounts loaded. Upload a CSV first.")
+
+    portfolio = _current_portfolio()
+
+    # Gather live market data for all underlyings
+    symbols = list({
+        p.underlying for p in portfolio.all_positions
+        if not p.underlying.startswith("/")
+    })
+    for s in ["SPY", "QQQ"]:
+        if s not in symbols:
+            symbols.append(s)
+
+    vix, market = await fetch_all(symbols)
+
+    return StreamingResponse(
+        run_analysis(portfolio, vix, market),
+        media_type="text/event-stream",
+        headers={"Cache-Control": "no-cache", "X-Accel-Buffering": "no"},
+    )

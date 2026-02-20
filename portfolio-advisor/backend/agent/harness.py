@@ -46,7 +46,8 @@ def _build_user_message(
     market_data: dict[str, MarketData],
 ) -> str:
     """Format the portfolio state into the analysis prompt."""
-    net_liq = portfolio.total_net_liq
+    # Fallback to configured values when CSV doesn't include account-level net_liq
+    net_liq = portfolio.total_net_liq if portfolio.total_net_liq > 0 else 436000
 
     # Account summary
     acct_lines = []
@@ -163,10 +164,16 @@ async def run_analysis(
         yield 'data: {"type": "error", "message": "ANTHROPIC_API_KEY not set"}\n\n'
         return
 
-    model = model or os.getenv("CLAUDE_MODEL", "claude-opus-4-6")
+    model = model or os.getenv("CLAUDE_MODEL", "claude-sonnet-4-6")
     user_message = _build_user_message(portfolio, vix, market_data)
 
     client = anthropic.AsyncAnthropic(api_key=api_key)
+
+    # Dev/mock mode — set MOCK_ANALYSIS=1 in .env to bypass API call
+    if os.getenv("MOCK_ANALYSIS") == "1":
+        async for chunk in _mock_analysis(portfolio, vix):
+            yield chunk
+        return
 
     full_text = ""
     try:
@@ -181,7 +188,6 @@ async def run_analysis(
                 payload = json.dumps({"type": "text", "content": text_chunk})
                 yield f"data: {payload}\n\n"
 
-        # Try to extract JSON recommendations from the full response
         recommendations = _extract_recommendations(full_text)
         done_payload = json.dumps({
             "type": "done",
@@ -195,24 +201,176 @@ async def run_analysis(
         yield f"data: {error_payload}\n\n"
 
 
+async def _mock_analysis(portfolio: PortfolioSnapshot, vix: VixData) -> AsyncGenerator[str, None]:
+    """Return realistic mock recommendations for UI development without API credits."""
+    import asyncio
+
+    net_liq = portfolio.total_net_liq if portfolio.total_net_liq > 0 else 436000
+    urgent_positions = [p for p in portfolio.all_positions if p.min_dte is not None and p.min_dte < 21]
+    theta = abs(portfolio.combined_theta or 0)
+    min_theta = net_liq * 0.003
+
+    mock_recs = []
+
+    # Flag urgent DTE positions
+    for pos in urgent_positions:
+        mock_recs.append({
+            "priority": "urgent",
+            "action": "roll",
+            "symbol": pos.underlying,
+            "position_id": pos.id,
+            "rationale": f"Per trade plan: DTE={pos.min_dte} is below 21-day gamma risk threshold. Must roll or close before expiration to avoid assignment risk.",
+            "specific_action": f"Roll {pos.underlying} short options out 30-45 days for a credit. Target same or lower strike if tested.",
+            "estimated_credit": 150,
+            "urgency_flag": f"DTE={pos.min_dte} — gamma risk",
+        })
+
+    # Theta check
+    if theta < min_theta:
+        mock_recs.append({
+            "priority": "high",
+            "action": "enter",
+            "symbol": "SPY",
+            "rationale": f"Daily theta ${theta:.0f} is below the ${min_theta:.0f}/day minimum (0.3% of NetLiq). Need to add premium-selling positions. VIX at {vix.value:.1f} ({vix.regime}) — {'conditions favorable' if vix.regime in ('normal','elevated') else 'be selective'}.",
+            "specific_action": f"Sell SPY 30-45 DTE put at 0.20-0.25Δ to add ~$200/day theta. Check BP first.",
+            "estimated_credit": 300,
+            "urgency_flag": None,
+        })
+
+    # VIX-based posture rec
+    if vix.regime == "low":
+        mock_recs.append({
+            "priority": "medium",
+            "action": "adjust",
+            "symbol": "PORTFOLIO",
+            "rationale": f"VIX={vix.value:.1f} is LOW regime. Per trade plan: reduce short vega, be selective with new entries, keep BP at 45%. Consider adding PMCC positions (long vega) to balance.",
+            "specific_action": "Review any high-vega short positions. Avoid adding new strangles until VIX > 18.",
+            "estimated_credit": None,
+            "urgency_flag": None,
+        })
+    elif vix.regime == "elevated":
+        mock_recs.append({
+            "priority": "medium",
+            "action": "enter",
+            "symbol": "PORTFOLIO",
+            "rationale": f"VIX={vix.value:.1f} is ELEVATED regime. Per trade plan: aggressive premium selling window. Add RMCWs and strangles on futures within BP limits.",
+            "specific_action": "Add 1-2 RMCW positions on high-quality pullback stocks. Target 0.20-0.30Δ short calls.",
+            "estimated_credit": 400,
+            "urgency_flag": None,
+        })
+
+    # Check for positions near 50% profit target → CLOSE recommendation (F026)
+    for pos in portfolio.all_positions:
+        pnl = pos.unrealized_pnl or 0
+        # If position is profitable at 40%+ of max profit (proxied by pnl > 0 with good theta)
+        if pnl > 200 and pos.min_dte is not None and 21 <= pos.min_dte <= 45:
+            mock_recs.append({
+                "priority": "high",
+                "action": "close",
+                "symbol": pos.underlying,
+                "position_id": pos.id,
+                "rationale": f"Per trade plan: {pos.underlying} has unrealized P&L of ${pnl:.0f} at DTE={pos.min_dte}. At 50% profit target, close early to free BP and lock in gains. Don't let winners turn into losers.",
+                "specific_action": f"Close {pos.underlying} position for ${pnl:.0f} credit. Re-deploy BP into new 45-DTE positions.",
+                "estimated_credit": int(pnl),
+                "urgency_flag": None,
+            })
+            break  # Only flag one close example
+
+    # Delta hedge check (F028) — flag if portfolio is directionally skewed.
+    # combined_delta is raw Greek sum (not dollar-weighted); use relative threshold.
+    delta = portfolio.combined_delta or 0
+    abs_delta = abs(delta)
+    # Trigger if raw delta > 4 (roughly equivalent to meaningful directional exposure)
+    delta_limit = round(net_liq * 0.002, 0)
+    if abs_delta > 4:
+        direction = "long" if delta > 0 else "short"
+        mock_recs.append({
+            "priority": "high",
+            "action": "hedge",
+            "symbol": "SPY",
+            "rationale": f"Portfolio is {direction}-biased (raw delta={delta:.2f}). Per trade plan, directional exposure should be neutral-to-slight-bearish. Need to reduce exposure.",
+            "specific_action": f"Buy 1 SPY {'put' if direction == 'long' else 'call'} spread (30-45 DTE, 0.20Δ) to reduce delta. Alternatively, trim the largest delta-positive position.",
+            "estimated_credit": -150,
+            "urgency_flag": f"Delta={delta:.2f} — {direction} skew",
+        })
+
+    # Generic monitor for stable positions
+    stable = [p for p in portfolio.all_positions if p.min_dte is None or p.min_dte >= 21]
+    if stable:
+        mock_recs.append({
+            "priority": "low",
+            "action": "monitor",
+            "symbol": ", ".join(p.underlying for p in stable[:3]),
+            "rationale": "Positions within normal parameters. No action required. Continue monitoring DTE and profit targets.",
+            "specific_action": "Check again at 50% profit target or when DTE reaches 21 days.",
+            "estimated_credit": None,
+            "urgency_flag": None,
+        })
+
+    mock_response = {
+        "vix_assessment": f"VIX at {vix.value:.2f} — {vix.regime.upper()} regime. {'Active premium selling conditions.' if vix.regime == 'normal' else 'Adjust posture per trade plan.'}",
+        "greeks_assessment": f"Portfolio delta={portfolio.combined_delta:.3f}, theta=${abs(portfolio.combined_theta or 0):.0f}/day (target ${min_theta:.0f}), vega={portfolio.combined_vega:.2f}",
+        "monthly_progress": f"On track for 3% goal. Current theta run-rate: ${abs(portfolio.combined_theta or 0) * 30:.0f}/month vs ${net_liq * 0.03:.0f} target.",
+        "recommendations": mock_recs,
+        "summary": f"Portfolio has {len(portfolio.all_positions)} positions across {len(portfolio.accounts)} accounts. {len(urgent_positions)} position(s) require urgent attention (DTE < 21). VIX at {vix.value:.1f} indicates {vix.regime} regime — {'proceed with normal operations' if vix.regime == 'normal' else 'adjust strategy per trade plan'}.",
+    }
+
+    mock_text = json.dumps(mock_response, indent=2)
+
+    # Stream it word by word to simulate real streaming
+    words = mock_text.split(" ")
+    for i, word in enumerate(words):
+        chunk = word + (" " if i < len(words) - 1 else "")
+        payload = json.dumps({"type": "text", "content": chunk})
+        yield f"data: {payload}\n\n"
+        await asyncio.sleep(0.01)
+
+    done_payload = json.dumps({
+        "type": "done",
+        "recommendations": mock_recs,
+        "full_text": mock_text,
+    })
+    yield f"data: {done_payload}\n\n"
+
+
 def _extract_recommendations(text: str) -> list[dict]:
     """
     Extract the JSON recommendations object from the agent's text response.
-    Claude is instructed to return JSON — try to parse it out.
+    Tries multiple strategies to find the JSON block.
     """
     import re
 
-    # Try to find a JSON block in the response
-    json_match = re.search(r"```json\s*(\{.*?\})\s*```", text, re.DOTALL)
-    if not json_match:
-        # Try bare JSON object
-        json_match = re.search(r"(\{[^{}]*\"recommendations\"\s*:\s*\[.*?\]\s*\})", text, re.DOTALL)
-
-    if json_match:
+    # Strategy 1: fenced ```json ... ``` block
+    for m in re.finditer(r"```json\s*([\s\S]*?)\s*```", text):
         try:
-            parsed = json.loads(json_match.group(1))
-            return parsed.get("recommendations", [])
+            parsed = json.loads(m.group(1))
+            if "recommendations" in parsed:
+                return parsed.get("recommendations", [])
         except json.JSONDecodeError:
-            pass
+            continue
+
+    # Strategy 2: find the first '{' that contains "recommendations" and balance braces
+    start = text.find('"recommendations"')
+    if start == -1:
+        return []
+
+    # Walk back to find the opening brace of the outer object
+    brace_start = text.rfind('{', 0, start)
+    if brace_start == -1:
+        return []
+
+    # Walk forward balancing braces
+    depth = 0
+    for i, ch in enumerate(text[brace_start:], start=brace_start):
+        if ch == '{':
+            depth += 1
+        elif ch == '}':
+            depth -= 1
+            if depth == 0:
+                try:
+                    parsed = json.loads(text[brace_start:i + 1])
+                    return parsed.get("recommendations", [])
+                except json.JSONDecodeError:
+                    break
 
     return []

@@ -26,6 +26,7 @@ Think like a professional portfolio manager reviewing positions at end-of-day.
 9. Identify any missing hedges or tail risk
 
 ## RESPONSE FORMAT
+Your ENTIRE response must be valid JSON wrapped in a ```json code fence. No text before or after.
 Return a JSON object with this exact structure:
 {
   "vix_assessment": "string — VIX value, regime, and what it means for today's posture",

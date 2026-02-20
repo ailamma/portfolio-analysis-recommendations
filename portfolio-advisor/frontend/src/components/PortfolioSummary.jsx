@@ -106,6 +106,43 @@ function BpBar({ label, pct, broker }) {
   )
 }
 
+function ThetaStatus({ theta, minTheta, netLiq }) {
+  const absTheta = Math.abs(theta)
+  const isOk = absTheta >= minTheta
+  const weeklyTheta = absTheta * 7
+  const weeklyTarget = minTheta * 7
+  const color = isOk ? C.success : absTheta >= minTheta * 0.7 ? C.warning : C.danger
+  return (
+    <div style={{
+      background: '#0d1117', border: `1px solid ${isOk ? C.border : color + '50'}`,
+      borderRadius: '6px', padding: '10px 14px', marginBottom: '14px',
+    }}>
+      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '4px' }}>
+        <span style={{ fontSize: '11px', color: C.textMuted, textTransform: 'uppercase', letterSpacing: '0.5px' }}>
+          Weekly Theta Status
+        </span>
+        <span style={{
+          fontSize: '11px', fontWeight: 600, color,
+          background: `${color}20`, padding: '2px 8px', borderRadius: '10px',
+        }}>
+          {isOk ? '✓ On Target' : '⚠ Below Target'}
+        </span>
+      </div>
+      <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '13px' }}>
+        <span style={{ color: C.text, fontWeight: 600 }}>
+          ${weeklyTheta.toLocaleString('en-US', { maximumFractionDigits: 0 })}/wk
+        </span>
+        <span style={{ color: C.textMuted }}>
+          target ${weeklyTarget.toLocaleString('en-US', { maximumFractionDigits: 0 })}/wk
+          <span style={{ fontSize: '10px', marginLeft: '4px' }}>
+            (${minTheta.toFixed(0)}/day)
+          </span>
+        </span>
+      </div>
+    </div>
+  )
+}
+
 function MonthlyProgress({ netLiq, realizedPnl }) {
   const target = netLiq * 0.03
   const pct = target > 0 ? Math.min(1, realizedPnl / target) : 0
@@ -252,6 +289,9 @@ export default function PortfolioSummary({ portfolio, vix, marketData }) {
           unit="" isPositiveGood={false}
         />
       </div>
+
+      {/* Theta status vs daily target (F032) */}
+      <ThetaStatus theta={theta} minTheta={minTheta} netLiq={netLiq} />
 
       {/* Monthly P&L progress */}
       <MonthlyProgress netLiq={netLiq} realizedPnl={realizedPnl} />

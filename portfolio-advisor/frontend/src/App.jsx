@@ -89,6 +89,8 @@ export default function App() {
       if (!res.ok) throw new Error(data.detail || 'Upload failed')
       setUploadStatus(s => ({ ...s, [broker]: 'done' }))
       await refreshPortfolio()
+      // Auto-trigger analysis after first successful upload (F021)
+      handleAnalyze()
     } catch (err) {
       setUploadStatus(s => ({ ...s, [broker]: 'error' }))
       setErrors(e => [...e, `${broker}: ${err.message}`])
@@ -177,6 +179,7 @@ export default function App() {
             onUpload={handleUpload}
             onAnalyze={handleAnalyze}
             isAnalyzing={isAnalyzing}
+            hasRecs={recommendations.length > 0}
           />
           <GreeksDisplay portfolio={portfolio} />
         </div>
