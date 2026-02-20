@@ -37,17 +37,51 @@ def _fetch_vix_sync() -> float:
 
 # ── Per-Symbol Market Data ────────────────────────────────────────────────────
 
+# Symbols that yfinance can't resolve — map to correct ticker or skip
+SYMBOL_MAP = {
+    "BRKB": "BRK-B",
+    "SPXW": None,    # SPX weeklies — index, no yfinance ticker; skip
+    "MRUT": None,    # Russell micro — skip
+}
+
+
 async def fetch_market_data(symbols: list[str]) -> dict[str, MarketData]:
     """
     Fetch current price and estimated IV rank for a list of symbols.
-    Futures symbols (starting with /) are skipped — use manual entry for those.
+    Futures (/ES, /CL, etc.) are skipped.
+    Known problematic tickers are remapped or skipped.
     """
-    equity_symbols = [s for s in symbols if not s.startswith("/")]
-    if not equity_symbols:
+    now = datetime.utcnow()
+    yf_symbols = []
+    remap: dict[str, str] = {}   # yf_sym → original_sym
+
+    for sym in symbols:
+        if sym.startswith("/"):
+            continue  # futures — no yfinance data
+        mapped = SYMBOL_MAP.get(sym)
+        if mapped is None and sym in SYMBOL_MAP:
+            continue  # explicitly skipped
+        yf_sym = mapped if mapped else sym
+        yf_symbols.append(yf_sym)
+        remap[yf_sym] = sym
+
+    if not yf_symbols:
         return {}
 
     loop = asyncio.get_event_loop()
-    results = await loop.run_in_executor(None, _fetch_batch_sync, equity_symbols)
+    raw = await loop.run_in_executor(None, _fetch_batch_sync, yf_symbols)
+
+    # Re-key results back to original symbol names
+    results: dict[str, MarketData] = {}
+    for yf_sym, md in raw.items():
+        orig = remap.get(yf_sym, yf_sym)
+        results[orig] = MarketData(
+            symbol=orig,
+            price=md.price,
+            iv_rank=md.iv_rank,
+            historical_vol_30d=md.historical_vol_30d,
+            fetched_at=md.fetched_at,
+        )
     return results
 
 

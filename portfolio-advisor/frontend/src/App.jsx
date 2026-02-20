@@ -43,6 +43,7 @@ export default function App() {
   const [uploadStatus,  setUploadStatus]  = useState({ tastytrade: null, tos: null })
   const [errors,        setErrors]        = useState([])
   const [activeTab,     setActiveTab]     = useState('positions')
+  const [manualNetLiq,  setManualNetLiq]  = useState(0)   // user-entered total account net liq
   const timerRef = useRef(null)
 
   // ── Market data polling ───────────────────────────────────────────────────
@@ -180,8 +181,10 @@ export default function App() {
             onAnalyze={handleAnalyze}
             isAnalyzing={isAnalyzing}
             hasRecs={recommendations.length > 0}
+            netLiq={manualNetLiq}
+            onNetLiqChange={setManualNetLiq}
           />
-          <GreeksDisplay portfolio={portfolio} />
+          <GreeksDisplay portfolio={portfolio} netLiq={manualNetLiq} />
         </div>
 
         {/* Main */}
@@ -199,7 +202,7 @@ export default function App() {
           )}
 
           {/* Portfolio summary (always shown, adjusts based on loaded state) */}
-          <PortfolioSummary portfolio={portfolio} vix={vix} marketData={marketData} />
+          <PortfolioSummary portfolio={portfolio} vix={vix} marketData={marketData} manualNetLiq={manualNetLiq} />
 
           {/* Tab bar */}
           {hasPositions && (

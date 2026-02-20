@@ -133,7 +133,7 @@ function AnalysisStatusBar({ uploadStatus, isAnalyzing, hasRecs }) {
   )
 }
 
-export default function UploadPanel({ uploadStatus, onUpload, onAnalyze, isAnalyzing, hasRecs }) {
+export default function UploadPanel({ uploadStatus, onUpload, onAnalyze, isAnalyzing, hasRecs, netLiq, onNetLiqChange }) {
   const bothUploaded = uploadStatus.tastytrade === 'done' || uploadStatus.tos === 'done'
 
   return (
@@ -146,6 +146,35 @@ export default function UploadPanel({ uploadStatus, onUpload, onAnalyze, isAnaly
       <h2 style={{ fontSize: '14px', fontWeight: 600, marginBottom: '16px', color: COLORS.text }}>
         Upload Positions
       </h2>
+
+      {/* Net Liq input — TastyTrade CSV doesn't include account net liq */}
+      <div style={{ marginBottom: '14px' }}>
+        <label style={{ fontSize: '12px', color: COLORS.textMuted, display: 'block', marginBottom: '4px' }}>
+          Total Account Net Liq ($)
+        </label>
+        <input
+          type="number"
+          value={netLiq || ''}
+          onChange={e => onNetLiqChange(e.target.value ? parseFloat(e.target.value) : 0)}
+          placeholder="e.g. 326000"
+          style={{
+            width: '100%',
+            background: '#0d1117',
+            border: `1px solid ${netLiq > 0 ? COLORS.success : COLORS.border}`,
+            borderRadius: '5px',
+            color: COLORS.text,
+            fontSize: '13px',
+            padding: '7px 10px',
+            boxSizing: 'border-box',
+            outline: 'none',
+          }}
+        />
+        {!netLiq && (
+          <div style={{ fontSize: '10px', color: COLORS.warning, marginTop: '3px' }}>
+            ⚠ Enter to enable Greek threshold calculations
+          </div>
+        )}
+      </div>
 
       <UploadRow
         label="TastyTrade Export"

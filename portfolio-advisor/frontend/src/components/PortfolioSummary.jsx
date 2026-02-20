@@ -166,7 +166,7 @@ function MonthlyProgress({ netLiq, realizedPnl }) {
   )
 }
 
-export default function PortfolioSummary({ portfolio, vix, marketData }) {
+export default function PortfolioSummary({ portfolio, vix, marketData, manualNetLiq }) {
   if (!portfolio) {
     return (
       <div style={{
@@ -181,7 +181,9 @@ export default function PortfolioSummary({ portfolio, vix, marketData }) {
     )
   }
 
-  const netLiq = portfolio.total_net_liq || 436000
+  // Use CSV net_liq if available, otherwise use user-entered value
+  const netLiq = (portfolio.total_net_liq > 0 ? portfolio.total_net_liq : manualNetLiq) || 0
+  const hasNetLiq = netLiq > 0
   const realizedPnl = portfolio.all_positions?.reduce((s, p) => s + (p.unrealized_pnl || 0), 0) || 0
 
   // Trade plan thresholds
@@ -215,13 +217,13 @@ export default function PortfolioSummary({ portfolio, vix, marketData }) {
       <div style={{ display: 'flex', gap: '10px', flexWrap: 'wrap', marginBottom: '14px' }}>
         <StatCard
           label="Total NetLiq"
-          value={`$${netLiq.toLocaleString('en-US', { maximumFractionDigits: 0 })}`}
-          subtext={`${portfolio.accounts?.length || 0} accounts`}
-          color={C.accent}
+          value={hasNetLiq ? `$${netLiq.toLocaleString('en-US', { maximumFractionDigits: 0 })}` : '—'}
+          subtext={hasNetLiq ? `${portfolio.accounts?.length || 0} accounts` : 'Enter in sidebar ↑'}
+          color={hasNetLiq ? C.accent : C.warning}
         />
         <StatCard
           label="Monthly Target"
-          value={`$${(netLiq * 0.03).toLocaleString('en-US', { maximumFractionDigits: 0 })}`}
+          value={hasNetLiq ? `$${(netLiq * 0.03).toLocaleString('en-US', { maximumFractionDigits: 0 })}` : '—'}
           subtext="3% of NetLiq"
         />
         <StatCard
@@ -232,7 +234,7 @@ export default function PortfolioSummary({ portfolio, vix, marketData }) {
         />
         <StatCard
           label="Daily θ Target"
-          value={`$${minTheta.toFixed(0)}`}
+          value={hasNetLiq ? `$${minTheta.toFixed(0)}` : '—'}
           subtext="min 0.3% of NLiq"
         />
       </div>
